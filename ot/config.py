@@ -7,7 +7,7 @@ Handles loading, saving, and validating configuration from YAML files.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +19,8 @@ DEFAULT_CONFIG_DIR = Path.home() / ".config" / "ot"
 DEFAULT_CONFIG_FILE = DEFAULT_CONFIG_DIR / "config.yaml"
 DEFAULT_LOG_DIR = Path.home() / ".local" / "share" / "ot" / "logs"
 DEFAULT_LOG_RETENTION_DAYS = 7
+DEFAULT_ICLOUD_WAIT_TIMEOUT = 120  # seconds
+DEFAULT_RSYNC_DELETE = False  # Default to safe mode (no delete)
 
 
 @dataclass
@@ -31,12 +33,16 @@ class Config:
         log_dir: Path to store log files.
         ssh_key_path: Path to the SSH private key for Git operations.
         log_retention_days: Number of days to keep old log files.
+        icloud_wait_timeout: Seconds to wait for iCloud sync to complete.
+        rsync_delete: Whether to delete files in dest that don't exist in source.
     """
     source_dir: Path
     dest_dir: Path
     log_dir: Path = field(default_factory=lambda: DEFAULT_LOG_DIR)
     ssh_key_path: Path | None = None
     log_retention_days: int = DEFAULT_LOG_RETENTION_DAYS
+    icloud_wait_timeout: int = DEFAULT_ICLOUD_WAIT_TIMEOUT
+    rsync_delete: bool = DEFAULT_RSYNC_DELETE
     
     def __post_init__(self) -> None:
         """Convert string paths to Path objects."""
@@ -57,6 +63,8 @@ class Config:
             "log_dir": str(self.log_dir),
             "ssh_key_path": str(self.ssh_key_path) if self.ssh_key_path else None,
             "log_retention_days": self.log_retention_days,
+            "icloud_wait_timeout": self.icloud_wait_timeout,
+            "rsync_delete": self.rsync_delete,
         }
 
 
@@ -105,6 +113,8 @@ def load_config(config_path: Path | None = None) -> Config:
         log_dir=data.get("log_dir", DEFAULT_LOG_DIR),
         ssh_key_path=data.get("ssh_key_path"),
         log_retention_days=data.get("log_retention_days", DEFAULT_LOG_RETENTION_DAYS),
+        icloud_wait_timeout=data.get("icloud_wait_timeout", DEFAULT_ICLOUD_WAIT_TIMEOUT),
+        rsync_delete=data.get("rsync_delete", DEFAULT_RSYNC_DELETE),
     )
 
 
@@ -137,6 +147,12 @@ def save_config(config: Config, config_path: Path | None = None) -> None:
             )
     except OSError as e:
         raise ConfigError(f"Cannot write config file: {e}")
+    
+    # Set secure file permissions (owner read/write only)
+    try:
+        os.chmod(config_path, 0o600)
+    except OSError:
+        pass  # Best effort, may fail on some file systems
 
 
 class ConfigValidationError(Exception):

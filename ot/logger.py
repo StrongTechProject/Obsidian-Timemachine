@@ -7,6 +7,7 @@ Provides structured logging with daily rotation and automatic cleanup.
 from __future__ import annotations
 
 import logging
+import os
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -78,6 +79,12 @@ def setup_logging(
     # Ensure log directory exists
     log_dir = Path(log_dir).expanduser().resolve()
     log_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Set secure directory permissions (owner access only)
+    try:
+        os.chmod(log_dir, 0o700)
+    except OSError:
+        pass  # Best effort, may fail on some file systems
     
     # Create or get logger
     logger = logging.getLogger("obsidian_timemachine")

@@ -8,6 +8,7 @@ fetch, merge, commit, and push operations.
 from __future__ import annotations
 
 import os
+import shlex
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -74,7 +75,8 @@ def _run_git(
     # Configure SSH command if key path is provided
     if ssh_key_path:
         ssh_key_path = Path(ssh_key_path).expanduser().resolve()
-        env["GIT_SSH_COMMAND"] = f"ssh -i {ssh_key_path} -o IdentitiesOnly=yes"
+        quoted_path = shlex.quote(str(ssh_key_path))
+        env["GIT_SSH_COMMAND"] = f"ssh -i {quoted_path} -o IdentitiesOnly=yes"
     
     # Ensure consistent locale
     env["LC_ALL"] = "en_US.UTF-8"
@@ -402,6 +404,14 @@ def commit(
         GitResult with operation status.
     """
     logger = get_logger()
+    
+    # Ensure Git user is configured (required for commit)
+    user_email = _run_git(["config", "user.email"], cwd=repo_path)
+    if not user_email.success or not user_email.output.strip():
+        logger.info("⚙️ Configuring default Git user for this repository...")
+        _run_git(["config", "user.email", "obsidian-timemachine@local"], cwd=repo_path)
+        _run_git(["config", "user.name", "Obsidian Timemachine"], cwd=repo_path)
+    
     logger.info("📝 Committing changes...")
     
     result = _run_git(["commit", "-m", message], cwd=repo_path)

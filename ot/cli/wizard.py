@@ -6,6 +6,7 @@ Provides a guided setup experience for first-time configuration.
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -168,10 +169,19 @@ def setup_dest_directory() -> Path:
         click.echo()
         click.echo("Configure a remote repository (e.g., GitHub)?")
         if click.confirm("Add remote origin?", default=True):
-            remote_url = click.prompt(
-                "Remote URL (e.g., git@github.com:user/repo.git)",
-                type=str,
-            )
+            while True:
+                remote_url = click.prompt(
+                    "Remote URL (e.g., git@github.com:user/repo.git)",
+                    type=str,
+                )
+                # Validate URL format
+                git_url_pattern = r"^(git@[\w.-]+:|https?://|ssh://)"
+                if not re.match(git_url_pattern, remote_url):
+                    print_warning("URL format may be invalid. Expected git@, https://, or ssh://")
+                    if not click.confirm("Use this URL anyway?", default=False):
+                        continue
+                break
+            
             result = set_remote_url(dest, remote_url)
             if result.success:
                 print_success(f"Remote configured: {remote_url}")

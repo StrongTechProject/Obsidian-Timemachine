@@ -160,7 +160,7 @@ class SyncRunner:
             return run_rsync(
                 source=self.config.source_dir,
                 dest=self.config.dest_dir,
-                delete=False,  # Don't delete to protect .git
+                delete=self.config.rsync_delete,
             )
     
     def run(self) -> SyncResult:
@@ -206,7 +206,7 @@ class SyncRunner:
         if not self._should_skip_rsync():
             wait_for_icloud_sync(
                 source_dir=self.config.source_dir,
-                max_wait_seconds=60,
+                max_wait_seconds=self.config.icloud_wait_timeout,
             )
         
         # Step 5: Sync files

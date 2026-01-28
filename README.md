@@ -125,6 +125,8 @@ ot status
 | `dest_dir` | Path to Git repository | Required |
 | `ssh_key_path` | Path to SSH private key | `~/.ssh/id_ed25519` |
 | `log_retention_days` | Days to keep log files | `7` |
+| `icloud_wait_timeout` | Seconds to wait for iCloud sync | `120` |
+| `rsync_delete` | Delete files in dest not in source | `false` |
 
 ### Logs
 

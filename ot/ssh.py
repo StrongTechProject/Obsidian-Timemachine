@@ -7,6 +7,7 @@ Provides functions for finding, generating, and managing SSH keys.
 from __future__ import annotations
 
 import os
+import shlex
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -189,8 +190,15 @@ def generate_ssh_key(
         "-t", key_type,
         "-C", email,
         "-f", str(key_path),
-        "-N", "",  # No passphrase
+        "-N", "",  # No passphrase (security trade-off for automation)
     ]
+    
+    # Log security warning about passphrase-less key
+    logger.warning(
+        "⚠️ Generating SSH key without passphrase. "
+        "This is required for automated operation but reduces security. "
+        "Keep the private key file secure!"
+    )
     
     try:
         result = subprocess.run(
