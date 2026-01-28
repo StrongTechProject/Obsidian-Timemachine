@@ -187,5 +187,13 @@ def schedule_show() -> None:
         click.echo("Use 'ot schedule set <frequency>' to enable.")
 
 
+@cli.command()
+def menu() -> None:
+    """Open the interactive menu."""
+    from .menu import run_menu
+    
+    run_menu()
+
+
 if __name__ == "__main__":
     cli()
