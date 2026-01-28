@@ -20,7 +20,7 @@ DEFAULT_CONFIG_FILE = DEFAULT_CONFIG_DIR / "config.yaml"
 DEFAULT_LOG_DIR = Path.home() / ".local" / "share" / "ot" / "logs"
 DEFAULT_LOG_RETENTION_DAYS = 7
 DEFAULT_ICLOUD_WAIT_TIMEOUT = 120  # seconds
-DEFAULT_RSYNC_DELETE = False  # Default to safe mode (no delete)
+DEFAULT_RSYNC_DELETE = True  # Safe because Git preserves history
 
 
 @dataclass
