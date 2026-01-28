@@ -68,7 +68,8 @@ def print_menu_options() -> None:
     click.echo("  3. ⏰ Manage Schedule")
     click.echo("  4. ⚙️  Run Setup Wizard")
     click.echo("  5. 📁 View Logs")
-    click.echo("  6. ❌ Exit")
+    click.echo("  6. 🆕 Check for Updates")
+    click.echo("  7. ❌ Exit")
     click.echo()
 
 
@@ -212,6 +213,56 @@ def handle_logs() -> None:
     click.pause("Press any key to continue...")
 
 
+def handle_update() -> None:
+    """Handle checking for updates."""
+    from ..updater import (
+        UpdateError,
+        check_for_updates,
+        perform_update,
+        get_update_command,
+    )
+    
+    click.echo()
+    click.echo(click.style("🔍 Checking for updates...", fg="cyan"))
+    click.echo()
+    
+    try:
+        info = check_for_updates()
+    except UpdateError as e:
+        click.echo(click.style(f"❌ Failed to check: {e}", fg="red"))
+        click.echo()
+        click.pause("Press any key to continue...")
+        return
+    
+    click.echo(f"   Current version: {info.current_version}")
+    click.echo(f"   Latest version:  {info.latest_version}")
+    click.echo()
+    
+    if info.is_latest:
+        click.echo(click.style("✅ You are running the latest version!", fg="green"))
+    else:
+        click.echo(click.style("🆕 A new version is available!", fg="yellow"))
+        if info.release_url:
+            click.echo(f"   Release: {info.release_url}")
+        click.echo()
+        
+        if click.confirm("Do you want to install the update?", default=True):
+            click.echo()
+            try:
+                if perform_update():
+                    click.echo()
+                    click.echo(click.style("✅ Update completed!", fg="green"))
+                    click.echo("   Please restart the application.")
+                else:
+                    click.echo(click.style("❌ Update failed.", fg="red"))
+            except UpdateError as e:
+                click.echo(click.style(f"❌ Update failed: {e}", fg="red"))
+                click.echo(f"   Manual update: {get_update_command()}")
+    
+    click.echo()
+    click.pause("Press any key to continue...")
+
+
 def run_menu() -> None:
     """Run the interactive menu loop."""
     while True:
@@ -221,7 +272,7 @@ def run_menu() -> None:
         print_menu_options()
         
         try:
-            choice = click.prompt("Select option", type=int, default=6)
+            choice = click.prompt("Select option", type=int, default=7)
         except click.Abort:
             break
         
@@ -236,6 +287,8 @@ def run_menu() -> None:
         elif choice == 5:
             handle_logs()
         elif choice == 6:
+            handle_update()
+        elif choice == 7:
             click.echo()
             click.echo("Goodbye! 👋")
             break

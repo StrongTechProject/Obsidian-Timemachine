@@ -188,6 +188,103 @@ def schedule_show() -> None:
 
 
 @cli.command()
+@click.option(
+    "--check", "-c",
+    is_flag=True,
+    help="Only check for updates, don't install.",
+)
+@click.option(
+    "--force", "-f",
+    is_flag=True,
+    help="Force reinstall even if already at latest version.",
+)
+def update(check: bool, force: bool) -> None:
+    """Check for updates and upgrade to the latest version.
+    
+    By default, this will check for available updates and prompt
+    before installing. Use --check to only display update info.
+    """
+    from ..updater import (
+        UpdateError,
+        check_for_updates,
+        perform_update,
+        get_update_command,
+        GITHUB_REPO_URL,
+    )
+    
+    click.echo("🔍 Checking for updates...")
+    
+    try:
+        info = check_for_updates()
+    except UpdateError as e:
+        click.echo(f"❌ Failed to check for updates: {e}", err=True)
+        sys.exit(1)
+    
+    click.echo(f"\n📦 Version Information:")
+    click.echo(f"   Current:  {info.current_version}")
+    click.echo(f"   Latest:   {info.latest_version}")
+    
+    if info.is_latest:
+        click.echo(f"\n✅ You are running the latest version!")
+        if not force:
+            return
+        click.echo("   (Force reinstall requested)")
+    else:
+        click.echo(f"\n🆕 A new version is available!")
+        if info.release_url:
+            click.echo(f"   Release: {info.release_url}")
+        if info.release_notes:
+            click.echo(f"\n📝 Release Notes:")
+            # Truncate long release notes
+            notes = info.release_notes[:500]
+            if len(info.release_notes) > 500:
+                notes += "..."
+            for line in notes.split("\n"):
+                click.echo(f"   {line}")
+    
+    if check:
+        click.echo(f"\n💡 To update, run: ot update")
+        click.echo(f"   Or manually: {get_update_command()}")
+        return
+    
+    # Prompt before update unless force
+    if not force and not info.is_latest:
+        click.echo("")
+        if not click.confirm("Do you want to install this update?"):
+            click.echo("Update cancelled.")
+            return
+    
+    click.echo("")
+    try:
+        if perform_update(force=force):
+            click.echo("\n🎉 Update completed! Please restart the application.")
+        else:
+            click.echo("\n❌ Update failed.", err=True)
+            sys.exit(1)
+    except UpdateError as e:
+        click.echo(f"\n❌ Update failed: {e}", err=True)
+        click.echo(f"\n💡 Try updating manually:")
+        click.echo(f"   {get_update_command()}")
+        sys.exit(1)
+
+
+@cli.command()
+def version() -> None:
+    """Show detailed version information."""
+    from ..updater import get_current_version, GITHUB_REPO_URL
+    
+    try:
+        ver = get_current_version()
+    except Exception:
+        ver = "unknown"
+    
+    click.echo(f"Obsidian Timemachine v{ver}")
+    click.echo(f"Repository: {GITHUB_REPO_URL}")
+    click.echo("")
+    click.echo("Use 'ot update --check' to check for available updates.")
+
+
+@cli.command()
 def menu() -> None:
     """Open the interactive menu."""
     from .menu import run_menu

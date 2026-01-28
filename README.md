@@ -32,6 +32,17 @@
 
 ## Installation
 
+### One-Line Install (Recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/StrongTechProject/Obsidian-TimeMachine/main/install.sh | bash
+```
+
+This will:
+- Check system requirements (Python 3.10+, Git, rsync)
+- Install the package
+- Optionally run the setup wizard
+
 ### From Source
 
 ```bash
@@ -44,6 +55,20 @@ pip install .
 
 ```bash
 pip install -e ".[dev]"
+```
+
+### Updating
+
+To update to the latest version:
+
+```bash
+ot update
+```
+
+Or check for updates without installing:
+
+```bash
+ot update --check
 ```
 
 ## Quick Start
@@ -105,7 +130,8 @@ This opens an interactive menu for all operations:
   3. ⏰ Manage Schedule
   4. ⚙️  Run Setup Wizard
   5. 📁 View Logs
-  6. ❌ Exit
+  6. 🆕 Check for Updates
+  7. ❌ Exit
 ```
 
 ### Command Line (Advanced)
@@ -118,6 +144,9 @@ For scripting or quick access, you can use direct commands:
 | `ot sync` | Run backup (pull → sync → commit → push) |
 | `ot status` | Check configuration and sync status |
 | `ot setup` | Interactive configuration wizard |
+| `ot update` | Check for updates and upgrade |
+| `ot update --check` | Check for updates only |
+| `ot version` | Show version information |
 | `ot schedule set <freq>` | Set auto-sync: `15min`, `30min`, `hourly`, `daily` |
 | `ot schedule show` | Show current schedule |
 | `ot schedule remove` | Disable auto-sync |
