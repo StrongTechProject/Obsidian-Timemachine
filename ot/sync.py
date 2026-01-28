@@ -183,83 +183,112 @@ def run_rsync(
             "Deleted files in source will remain in destination."
         )
     
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            timeout=timeout,
-        )
-        
-        exit_code = result.returncode
-        # Decode with error handling for non-UTF-8 bytes (e.g., macOS filenames)
-        stdout = result.stdout.decode("utf-8", errors="replace")
-        stderr = result.stderr.decode("utf-8", errors="replace")
-        
-        # Interpret exit code
-        if exit_code == RsyncExitCode.SUCCESS:
-            logger.info("✅ Rsync completed successfully.")
-            return RsyncResult(
-                success=True,
-                exit_code=exit_code,
-                stdout=stdout,
-                stderr=stderr,
+    MAX_RETRIES = 3
+    RETRY_DELAY = 5
+    
+    for attempt in range(1, MAX_RETRIES + 1):
+        if attempt > 1:
+            logger.info(f"🔄 Retry attempt {attempt}/{MAX_RETRIES} in {RETRY_DELAY}s...")
+            import time
+            time.sleep(RETRY_DELAY)
+            
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                timeout=timeout,
             )
+            
+            exit_code = result.returncode
+            # Decode with error handling for non-UTF-8 bytes
+            stdout = result.stdout.decode("utf-8", errors="replace")
+            stderr = result.stderr.decode("utf-8", errors="replace")
+            
+            # Interpret exit code
+            if exit_code == RsyncExitCode.SUCCESS:
+                if attempt > 1:
+                    logger.info("✅ Rsync succeeded after retry.")
+                else:
+                    logger.info("✅ Rsync completed successfully.")
+                    
+                return RsyncResult(
+                    success=True,
+                    exit_code=exit_code,
+                    stdout=stdout,
+                    stderr=stderr,
+                )
+            
+            elif exit_code == 20: # Resource deadlock avoided (macOS iCloud)
+                logger.error(f"❌ rsync failed with exit code {exit_code} (Resource deadlock)")
+                if attempt < MAX_RETRIES:
+                    continue # Retry
+                
+                return RsyncResult(
+                    success=False,
+                    exit_code=exit_code,
+                    stdout=stdout,
+                    stderr=stderr,
+                )
+            
+            elif exit_code == RsyncExitCode.PARTIAL_TRANSFER_ERROR:
+                warning = (
+                    "rsync reported partial transfer (code 23). "
+                    "Some files may have issues."
+                )
+                logger.warning(f"⚠️ {warning}")
+                return RsyncResult(
+                    success=True,  # Partial success is still success
+                    exit_code=exit_code,
+                    stdout=stdout,
+                    stderr=stderr,
+                    warning=warning,
+                )
+            
+            elif exit_code == RsyncExitCode.VANISHED_SOURCE_FILES:
+                warning = (
+                    "rsync reported vanished source files (code 24). "
+                    "Some files disappeared during sync (usually harmless)."
+                )
+                logger.warning(f"⚠️ {warning}")
+                return RsyncResult(
+                    success=True,
+                    exit_code=exit_code,
+                    stdout=stdout,
+                    stderr=stderr,
+                    warning=warning,
+                )
+            
+            else:
+                logger.error(f"❌ rsync failed with exit code {exit_code}")
+                # Don't log full stderr here if we are returning it, caller might log it
+                # But we do log it for debug visibility
+                logger.debug(f"stderr: {stderr}")
+                return RsyncResult(
+                    success=False,
+                    exit_code=exit_code,
+                    stdout=stdout,
+                    stderr=stderr,
+                )
         
-        elif exit_code == RsyncExitCode.PARTIAL_TRANSFER_ERROR:
-            warning = (
-                "rsync reported partial transfer (code 23). "
-                "Some files may have issues."
-            )
-            logger.warning(f"⚠️ {warning}")
-            return RsyncResult(
-                success=True,  # Partial success is still success
-                exit_code=exit_code,
-                stdout=stdout,
-                stderr=stderr,
-                warning=warning,
-            )
-        
-        elif exit_code == RsyncExitCode.VANISHED_SOURCE_FILES:
-            warning = (
-                "rsync reported vanished source files (code 24). "
-                "Some files disappeared during sync (usually harmless)."
-            )
-            logger.warning(f"⚠️ {warning}")
-            return RsyncResult(
-                success=True,  # Vanished files are usually temp files
-                exit_code=exit_code,
-                stdout=stdout,
-                stderr=stderr,
-                warning=warning,
-            )
-        
-        else:
-            logger.error(f"❌ rsync failed with exit code {exit_code}")
-            logger.error(f"stderr: {stderr}")
+        except subprocess.TimeoutExpired:
+            logger.error(f"❌ rsync timed out after {timeout}s")
+            if attempt < MAX_RETRIES:
+                continue
             return RsyncResult(
                 success=False,
-                exit_code=exit_code,
-                stdout=stdout,
-                stderr=stderr,
+                exit_code=-1,
+                stdout="",
+                stderr=f"rsync timed out after {timeout} seconds",
             )
-    
-    except subprocess.TimeoutExpired:
-        logger.error(f"❌ rsync timed out after {timeout}s")
-        return RsyncResult(
-            success=False,
-            exit_code=-1,
-            stdout="",
-            stderr=f"rsync timed out after {timeout} seconds",
-        )
-    
-    except OSError as e:
-        logger.error(f"❌ Failed to execute rsync: {e}")
-        return RsyncResult(
-            success=False,
-            exit_code=-1,
-            stdout="",
-            stderr=str(e),
-        )
+        
+        except OSError as e:
+            logger.error(f"❌ Failed to execute rsync: {e}")
+            return RsyncResult(
+                success=False,
+                exit_code=-1,
+                stdout="",
+                stderr=str(e),
+            )
 
 
 def copy_directory_initial(
